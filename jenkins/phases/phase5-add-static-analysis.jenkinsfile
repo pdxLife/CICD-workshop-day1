@@ -16,8 +16,9 @@ pipeline {
         BUILD_NUMBER = "${env.BUILD_NUMBER}"
         GO_VERSION = '1.21.5'
         GOLANGCI_LINT_VERSION = '1.55.2'
-        GOPATH = "${WORKSPACE}/go"
-        PATH = "/usr/local/go/bin:${GOPATH}/bin:${PATH}"
+        GOROOT = "${WORKSPACE}/go"
+        GOPATH = "${WORKSPACE}/gopath"
+        PATH = "${WORKSPACE}/go/bin:${WORKSPACE}/gopath/bin:${PATH}"
     }
     
     stages {
@@ -52,8 +53,7 @@ pipeline {
                         GO_URL="https://go.dev/dl/${GO_TARBALL}"
                         
                         curl -fsSL -o ${GO_TARBALL} ${GO_URL}
-                        rm -rf /usr/local/go
-                        tar -C /usr/local -xzf ${GO_TARBALL}
+                        tar -C ${WORKSPACE} -xzf ${GO_TARBALL}
                         rm ${GO_TARBALL}
                     fi
                     
@@ -99,15 +99,15 @@ pipeline {
                     golangci-lint --version
                     
                     # Run golangci-lint
-                    golangci-lint run --timeout 5m ./...
+                    golangci-lint run --timeout 5m ./cmd/...
                     
                     echo ""
                     echo "Running go vet..."
-                    go vet ./...
+                    go vet ./cmd/...
                     
                     echo ""
                     echo "Running go fmt check..."
-                    UNFORMATTED=$(gofmt -l .)
+                    UNFORMATTED=$(gofmt -l cmd/)
                     if [ -n "$UNFORMATTED" ]; then
                         echo "❌ Unformatted files: $UNFORMATTED"
                         exit 1
@@ -150,7 +150,7 @@ pipeline {
                     
                     # Run tests and capture output
                     set +e
-                    go test -v -coverprofile=coverage.out -covermode=atomic ./... 2>&1 | tee test-output.txt
+                    go test -v -coverprofile=coverage.out -covermode=atomic ./cmd/... 2>&1 | tee test-output.txt
                     TEST_EXIT=$?
                     set -e
                     
